@@ -12,10 +12,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import gabema.activities.ui.theme.ActivitiesTheme
+import androidx.room.Room
+import gabema.activities.models.AppDatabase
 
 class MainActivity : ComponentActivity() {
+    private lateinit var db: AppDatabase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        db = Room.databaseBuilder(
+            applicationContext,
+            AppDatabase::class.java,
+            "activities-db"
+        ).build()
+
         enableEdgeToEdge()
         setContent {
             ActivitiesTheme {
