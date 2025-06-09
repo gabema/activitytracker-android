@@ -1,32 +1,28 @@
 package gabema.activities
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.room.Room
-import gabema.activities.ui.theme.ActivitiesTheme
 import gabema.activities.models.AppDatabase
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import gabema.activities.ui.theme.ActivitiesTheme
+import kotlinx.coroutines.launch
 
 data class ActivityUi(
     val id: Int,
@@ -65,12 +61,34 @@ class MainActivity : ComponentActivity() {
             "activities-db"
         ).build()
 
+        val editLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val updated = result.data?.getSerializableExtra("activityUi") as? ActivityUi
+                // TODO: Update the list with the edited or cloned activity
+            }
+        }
+
         enableEdgeToEdge()
         setContent {
             ActivitiesTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     ActivityListScreen(
-                        modifier = Modifier.padding(innerPadding)
+                        modifier = Modifier.padding(innerPadding),
+                        onEdit = { activityUi ->
+                            val intent = Intent(this, EditActivity::class.java)
+                            intent.putExtra("activityUi", activityUi)
+                            intent.putExtra("isClone", false)
+                            editLauncher.launch(intent)
+                        },
+                        onClone = { activityUi ->
+                            val intent = Intent(this, EditActivity::class.java)
+                            intent.putExtra("activityUi", activityUi)
+                            intent.putExtra("isClone", true)
+                            editLauncher.launch(intent)
+                        },
+                        onDelete = { activityUi ->
+                            // TODO: Remove from list or database
+                        }
                     )
                 }
             }
@@ -95,11 +113,19 @@ fun GreetingPreview() {
 }
 
 @Composable
-fun ActivityListScreen(modifier: Modifier = Modifier) {
+fun ActivityListScreen(
+    modifier: Modifier = Modifier,
+    onEdit: (ActivityUi) -> Unit = {},
+    onClone: (ActivityUi) -> Unit = {},
+    onDelete: (ActivityUi) -> Unit = {}
+) {
     var filter by remember { mutableStateOf("") }
-    val grouped = demoActivities
+    var activities by remember { mutableStateOf(demoActivities.toMutableList()) }
+    val grouped = activities
         .filter { it.title.contains(filter, true) || it.description.contains(filter, true) }
         .groupBy { it.group }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = modifier) {
         OutlinedTextField(
@@ -123,7 +149,29 @@ fun ActivityListScreen(modifier: Modifier = Modifier) {
                     }
                 }
                 items(items, key = { it.id }) { activity ->
-                    ActivityCard(activity)
+                    var dismissed by remember { mutableStateOf(false) }
+                    if (!dismissed) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .pointerInput(activity) {
+                                    detectDragGestures { change, dragAmount ->
+                                        if (dragAmount < -100 || dragAmount > 100) {
+                                            dismissed = true
+                                            onDelete(activity)
+                                        }
+                                    }
+                                }
+                                .pointerInput(activity) {
+                                    detectTapGestures(
+                                        onTap = { onEdit(activity) },
+                                        onLongPress = { onClone(activity) }
+                                    )
+                                }
+                        ) {
+                            ActivityCard(activity)
+                        }
+                    }
                 }
             }
         }
