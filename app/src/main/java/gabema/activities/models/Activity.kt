@@ -1,6 +1,9 @@
+package gabema.activities.models
+
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.ForeignKey
+import androidx.room.Index
 
 @Entity(
     tableName = "activities",
@@ -11,7 +14,8 @@ import androidx.room.ForeignKey
             childColumns = ["typeId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["typeId"])]
 )
 data class Activity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,

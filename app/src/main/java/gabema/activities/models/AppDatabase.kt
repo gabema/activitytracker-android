@@ -1,7 +1,13 @@
+package gabema.activities.models
+
 import androidx.room.Database
 import androidx.room.RoomDatabase
 
-@Database(entities = [ActivityEntity::class], version = 1)
+@Database(
+    entities = [Activity::class, ActivityType::class],
+    version = 1,
+    exportSchema = true
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun activityDao(): ActivityDao
 }

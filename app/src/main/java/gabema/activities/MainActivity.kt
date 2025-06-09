@@ -11,8 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import gabema.activities.ui.theme.ActivitiesTheme
 import androidx.room.Room
+import gabema.activities.ui.theme.ActivitiesTheme
 import gabema.activities.models.AppDatabase
 
 class MainActivity : ComponentActivity() {

@@ -1,13 +1,15 @@
+package gabema.activities.models
+
 import androidx.room.*
 
 @Dao
 interface ActivityDao {
     @Query("SELECT * FROM activities")
-    suspend fun getAll(): List<ActivityEntity>
+    suspend fun getAll(): List<Activity>
 
     @Insert
-    suspend fun insert(activity: ActivityEntity)
+    suspend fun insert(activity: Activity)
 
     @Delete
-    suspend fun delete(activity: ActivityEntity)
+    suspend fun delete(activity: Activity)
 }

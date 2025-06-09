@@ -1,3 +1,5 @@
+package gabema.activities.models
+
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
