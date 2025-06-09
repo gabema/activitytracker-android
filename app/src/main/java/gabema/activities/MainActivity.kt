@@ -6,14 +6,53 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.room.Room
 import gabema.activities.ui.theme.ActivitiesTheme
 import gabema.activities.models.AppDatabase
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
+data class ActivityUi(
+    val id: Int,
+    val title: String,
+    val description: String,
+    val type: String,
+    val duration: String,
+    val group: String // "Today", "Yesterday", etc.
+)
+
+private val demoActivities = listOf(
+    ActivityUi(1, "Arm Lifts", "15 reps @ 15 lb dumbbells", "Anaerobic", "15 min", "Today"),
+    ActivityUi(2, "Arm Curls", "15 reps @ 15 lb dumbbells", "Anaerobic", "15 min", "Today"),
+    ActivityUi(3, "Run", "2.5 mile grueling run", "Cardio", "25 min", "Today"),
+    ActivityUi(4, "Walk", "4 mile stroll", "Cardio", "2 hr 13 min", "Today"),
+    ActivityUi(5, "Chocolate Fun Size", "40 calories", "Treat", "—", "Yesterday"),
+    ActivityUi(6, "Bible Reading", "1 John", "Activity", "15 min", "Yesterday")
+)
+
+fun typeColor(type: String): Color = when (type) {
+    "Anaerobic" -> Color(0xFFB2DFDB)
+    "Cardio" -> Color(0xFFBBDEFB)
+    "Treat" -> Color(0xFFFFCDD2)
+    "Activity" -> Color(0xFFFFF9C4)
+    else -> Color.LightGray
+}
 
 class MainActivity : ComponentActivity() {
     private lateinit var db: AppDatabase
@@ -30,8 +69,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ActivitiesTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
+                    ActivityListScreen(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -53,5 +91,62 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 fun GreetingPreview() {
     ActivitiesTheme {
         Greeting("Android")
+    }
+}
+
+@Composable
+fun ActivityListScreen(modifier: Modifier = Modifier) {
+    var filter by remember { mutableStateOf("") }
+    val grouped = demoActivities
+        .filter { it.title.contains(filter, true) || it.description.contains(filter, true) }
+        .groupBy { it.group }
+
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = filter,
+            onValueChange = { filter = it },
+            label = { Text("Filter by Type or title/description") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        )
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            grouped.forEach { (group, items) ->
+                if (group != "Today") {
+                    item {
+                        Text(
+                            text = group,
+                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray
+                        )
+                    }
+                }
+                items(items, key = { it.id }) { activity ->
+                    ActivityCard(activity)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActivityCard(activity: ActivityUi) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(typeColor(activity.type))
+            .padding(16.dp)
+            .padding(vertical = 4.dp)
+    ) {
+        Text(activity.title, fontWeight = FontWeight.Bold)
+        Text(activity.description)
+        if (activity.duration != "—") {
+            Text(
+                activity.duration,
+                color = Color.DarkGray,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
     }
 }
