@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -13,16 +14,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.background
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.room.Room
 import gabema.activities.models.AppDatabase
 import gabema.activities.ui.theme.ActivitiesTheme
 import kotlinx.coroutines.launch
+import java.io.Serializable
 
 data class ActivityUi(
     val id: Int,
@@ -31,7 +35,7 @@ data class ActivityUi(
     val type: String,
     val duration: String,
     val group: String // "Today", "Yesterday", etc.
-)
+) : Serializable
 
 private val demoActivities = listOf(
     ActivityUi(1, "Arm Lifts", "15 reps @ 15 lb dumbbells", "Anaerobic", "15 min", "Today"),
