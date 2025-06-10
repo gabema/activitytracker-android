@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -14,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.background
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.room.Room
 import gabema.activities.models.AppDatabase
 import gabema.activities.ui.theme.ActivitiesTheme
-import kotlinx.coroutines.launch
 import java.io.Serializable
 
 data class ActivityUi(
@@ -160,7 +159,7 @@ fun ActivityListScreen(
                                 .fillMaxWidth()
                                 .pointerInput(activity) {
                                     detectDragGestures { change, dragAmount ->
-                                        if (dragAmount < -100 || dragAmount > 100) {
+                                        if (dragAmount.getDistance() > 100f) {
                                             dismissed = true
                                             onDelete(activity)
                                         }
