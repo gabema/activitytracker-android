@@ -23,9 +23,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
+import gabema.activities.models.Activity
+import gabema.activities.models.ActivityType
 import gabema.activities.models.AppDatabase
 import gabema.activities.ui.theme.ActivitiesTheme
 import java.io.Serializable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 data class ActivityUi(
     val id: Int,
@@ -62,40 +73,102 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "activities-db"
-        ).build()
+        )
+        .addCallback(object : RoomDatabase.Callback() {
+            override fun onCreate(dbInstance: SupportSQLiteDatabase) {
+                super.onCreate(dbInstance)
+                // Insert control data into activity_types using ActivityTypeDao
+                val types = listOf("Anaerobic", "Cardio", "Treat", "Activity")
+                val scope = CoroutineScope(Dispatchers.IO)
+                scope.launch {
+                    val dao = db.activityTypeDao()
+                    types.forEach { typeName ->
+                        dao.insert(ActivityType(id = 0, name = typeName))
+                    }
+                }
 
-        val editLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                val updated = result.data?.getSerializableExtra("activityUi") as? ActivityUi
-                // TODO: Update the list with the edited or cloned activity
+                // Insert test data into activity table
+                scope.launch {
+                    val dao = db.activityDao()
+                    demoActivities.forEach { activity ->
+                        dao.insert(Activity(
+                            id = 0,
+                            title = activity.title,
+                            description = activity.description,
+                            typeId = 1, // TODO Fix mapping
+                            whenDateTime = 12820300, // TODO Fix mapping
+                            durationMillis = 3600, // TODO Fix mapping
+                        ))
+                    }
+                }
             }
-        }
+        })
+        .build()
 
         enableEdgeToEdge()
         setContent {
             ActivitiesTheme {
+                val activityDao = db.activityDao()
+                val activityTypeDao = db.activityTypeDao()
+                var activities by remember { mutableStateOf<List<ActivityUi>>(emptyList()) }
+                var activityTypes by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+                val coroutineScope = rememberCoroutineScope()
+
+                // Load activities and types from DB
+                LaunchedEffect(Unit) {
+                    withContext(Dispatchers.IO) {
+                        val types = activityTypeDao.getAll().associateBy({ it.id }, { it.name })
+                        val acts = activityDao.getAll()
+                        withContext(Dispatchers.Main) {
+                            activityTypes = types
+                            activities = acts.map { entity ->
+                                ActivityUi(
+                                    id = entity.id,
+                                    title = entity.title,
+                                    description = entity.description,
+                                    type = types[entity.typeId] ?: "",
+                                    duration = formatDuration(entity.durationMillis),
+                                    group = groupForDate(entity.whenDateTime)
+                                )
+                            }
+                        }
+                    }
+                }
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     ActivityListScreen(
                         modifier = Modifier.padding(innerPadding),
-                        onEdit = { activityUi ->
-                            val intent = Intent(this, EditActivity::class.java)
-                            intent.putExtra("activityUi", activityUi)
-                            intent.putExtra("isClone", false)
-                            editLauncher.launch(intent)
-                        },
-                        onClone = { activityUi ->
-                            val intent = Intent(this, EditActivity::class.java)
-                            intent.putExtra("activityUi", activityUi)
-                            intent.putExtra("isClone", true)
-                            editLauncher.launch(intent)
-                        },
-                        onDelete = { activityUi ->
-                            // TODO: Remove from list or database
-                        }
+                        activities = activities,
+                        onEdit = { /* TODO: Implement edit */ },
+                        onClone = { /* TODO: Implement clone */ },
+                        onDelete = { /* TODO: Implement delete */ }
                     )
                 }
             }
         }
+    }
+}
+
+fun formatDuration(durationMillis: Long): String {
+    val totalSeconds = durationMillis / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return buildString {
+        if (hours > 0) append("${hours} hr ")
+        if (minutes > 0) append("${minutes} min ")
+        if (seconds > 0) append("${seconds} sec")
+    }.trim()
+}
+
+fun groupForDate(epochMillis: Long): String {
+    // Simple grouping: Today, Yesterday, or date string
+    val now = LocalDate.now()
+    val date = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+    return when {
+        date == now -> "Today"
+        date == now.minusDays(1) -> "Yesterday"
+        else -> date.toString()
     }
 }
 
@@ -118,12 +191,12 @@ fun GreetingPreview() {
 @Composable
 fun ActivityListScreen(
     modifier: Modifier = Modifier,
+    activities: List<ActivityUi> = emptyList(),
     onEdit: (ActivityUi) -> Unit = {},
     onClone: (ActivityUi) -> Unit = {},
     onDelete: (ActivityUi) -> Unit = {}
 ) {
     var filter by remember { mutableStateOf("") }
-    var activities by remember { mutableStateOf(demoActivities.toMutableList()) }
     val grouped = activities
         .filter { it.title.contains(filter, true) || it.description.contains(filter, true) }
         .groupBy { it.group }
