@@ -1,7 +1,6 @@
 package gabema.activities
 
 import android.content.Intent
-import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,7 +27,7 @@ class EditActivity : ComponentActivity() {
                         val resultIntent = Intent().apply {
                             putExtra("activityUi", updated)
                         }
-                        setResult(Activity.RESULT_OK, resultIntent)
+                        setResult(RESULT_OK, resultIntent)
                         finish()
                     },
                     onCancel = { finish() }
@@ -47,26 +46,44 @@ fun EditActivityScreen(
 ) {
     var title by remember { mutableStateOf(initial?.title ?: "") }
     var description by remember { mutableStateOf(initial?.description ?: "") }
-    var type by remember { mutableStateOf(initial?.type ?: "") }
-    var duration by remember { mutableStateOf(initial?.duration ?: "") }
-    var group by remember { mutableStateOf(initial?.group ?: "Today") }
+    var typeId by remember { mutableIntStateOf(initial?.typeId ?: 1) }
+    var duration by remember { mutableStateOf(initial?.duration?.toString() ?: "0") }
+    val whenDate by remember { mutableLongStateOf(initial?.whenDate ?: System.currentTimeMillis()) }
 
     Column(Modifier.padding(16.dp)) {
         OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = typeId.toString(),
+            onValueChange = { v -> typeId = v.toIntOrNull() ?: 1 },
+            label = { Text("TypeId") },
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = duration, onValueChange = { duration = it }, label = { Text("Duration") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = duration,
+            onValueChange = { duration = it },
+            label = { Text("Duration (ms)") },
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = group, onValueChange = { group = it }, label = { Text("Group") }, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(16.dp))
+        // Optionally add a date picker for whenDate
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Button(onClick = onCancel) { Text("Cancel") }
             Button(onClick = {
                 val id = if (isClone) 0 else (initial?.id ?: 0)
-                onSave(ActivityUi(id, title, description, type, duration, group))
+                onSave(
+                    ActivityUi(
+                        id = id,
+                        title = title,
+                        description = description,
+                        typeId = typeId,
+                        duration = duration.toLongOrNull() ?: 0L,
+                        whenDate = whenDate
+                    )
+                )
             }) { Text("Save") }
         }
     }

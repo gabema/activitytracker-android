@@ -1,11 +1,9 @@
 package gabema.activities
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -25,14 +23,10 @@ import androidx.compose.ui.unit.dp
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-import gabema.activities.models.Activity
-import gabema.activities.models.ActivityType
 import gabema.activities.models.AppDatabase
 import gabema.activities.ui.theme.ActivitiesTheme
 import java.io.Serializable
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
@@ -42,26 +36,23 @@ data class ActivityUi(
     val id: Int,
     val title: String,
     val description: String,
-    val type: String,
-    val duration: String,
-    val group: String // "Today", "Yesterday", etc.
+    val typeId: Int,
+    val duration: Long,
+    val whenDate: Long
 ) : Serializable
 
-private val demoActivities = listOf(
-    ActivityUi(1, "Arm Lifts", "15 reps @ 15 lb dumbbells", "Anaerobic", "15 min", "Today"),
-    ActivityUi(2, "Arm Curls", "15 reps @ 15 lb dumbbells", "Anaerobic", "15 min", "Today"),
-    ActivityUi(3, "Run", "2.5 mile grueling run", "Cardio", "25 min", "Today"),
-    ActivityUi(4, "Walk", "4 mile stroll", "Cardio", "2 hr 13 min", "Today"),
-    ActivityUi(5, "Chocolate Fun Size", "40 calories", "Treat", "—", "Yesterday"),
-    ActivityUi(6, "Bible Reading", "1 John", "Activity", "15 min", "Yesterday")
+val typeColorMap = listOf(
+    Color(0xFFB2DFDB),
+    Color(0xFFBBDEFB),
+    Color(0xFFFFCDD2),
+    Color(0xFFFFF9C4),
 )
 
-fun typeColor(type: String): Color = when (type) {
-    "Anaerobic" -> Color(0xFFB2DFDB)
-    "Cardio" -> Color(0xFFBBDEFB)
-    "Treat" -> Color(0xFFFFCDD2)
-    "Activity" -> Color(0xFFFFF9C4)
-    else -> Color.LightGray
+fun typeColor(typeId: Int): Color {
+    var foundColor = typeColorMap[typeId]
+    if (foundColor == Color.Unspecified)
+        foundColor = Color.LightGray
+    return foundColor;
 }
 
 class MainActivity : ComponentActivity() {
@@ -77,30 +68,7 @@ class MainActivity : ComponentActivity() {
         .addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(dbInstance: SupportSQLiteDatabase) {
                 super.onCreate(dbInstance)
-                // Insert control data into activity_types using ActivityTypeDao
-                val types = listOf("Anaerobic", "Cardio", "Treat", "Activity")
-                val scope = CoroutineScope(Dispatchers.IO)
-                scope.launch {
-                    val dao = db.activityTypeDao()
-                    types.forEach { typeName ->
-                        dao.insert(ActivityType(id = 0, name = typeName))
-                    }
-                }
-
-                // Insert test data into activity table
-                scope.launch {
-                    val dao = db.activityDao()
-                    demoActivities.forEach { activity ->
-                        dao.insert(Activity(
-                            id = 0,
-                            title = activity.title,
-                            description = activity.description,
-                            typeId = 1, // TODO Fix mapping
-                            whenDateTime = 12820300, // TODO Fix mapping
-                            durationMillis = 3600, // TODO Fix mapping
-                        ))
-                    }
-                }
+                DatabaseSeeder.seed(db, dbInstance)
             }
         })
         .build()
@@ -112,7 +80,6 @@ class MainActivity : ComponentActivity() {
                 val activityTypeDao = db.activityTypeDao()
                 var activities by remember { mutableStateOf<List<ActivityUi>>(emptyList()) }
                 var activityTypes by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-                val coroutineScope = rememberCoroutineScope()
 
                 // Load activities and types from DB
                 LaunchedEffect(Unit) {
@@ -126,9 +93,9 @@ class MainActivity : ComponentActivity() {
                                     id = entity.id,
                                     title = entity.title,
                                     description = entity.description,
-                                    type = types[entity.typeId] ?: "",
-                                    duration = formatDuration(entity.durationMillis),
-                                    group = groupForDate(entity.whenDateTime)
+                                    typeId = entity.typeId,
+                                    duration = entity.durationMillis,
+                                    whenDate = entity.whenDateTime
                                 )
                             }
                         }
@@ -199,7 +166,7 @@ fun ActivityListScreen(
     var filter by remember { mutableStateOf("") }
     val grouped = activities
         .filter { it.title.contains(filter, true) || it.description.contains(filter, true) }
-        .groupBy { it.group }
+        .groupBy { groupForDate(it.whenDate) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -259,15 +226,15 @@ fun ActivityCard(activity: ActivityUi) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(typeColor(activity.type))
+            .background(typeColor(activity.typeId))
             .padding(16.dp)
             .padding(vertical = 4.dp)
     ) {
         Text(activity.title, fontWeight = FontWeight.Bold)
         Text(activity.description)
-        if (activity.duration != "—") {
+        if (activity.duration != 0L) {
             Text(
-                activity.duration,
+                formatDuration(activity.duration),
                 color = Color.DarkGray,
                 modifier = Modifier.align(Alignment.End)
             )
