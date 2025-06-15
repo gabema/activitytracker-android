@@ -49,10 +49,11 @@ val typeColorMap = listOf(
 )
 
 fun typeColor(typeId: Int): Color {
-    var foundColor = typeColorMap[typeId]
-    if (foundColor == Color.Unspecified)
-        foundColor = Color.LightGray
-    return foundColor;
+    try {
+        return typeColorMap[typeId];
+    } catch (ex: Exception) {
+        return Color.LightGray;
+    }
 }
 
 class MainActivity : ComponentActivity() {
