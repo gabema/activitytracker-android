@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,27 +48,27 @@ val typeColorMap = listOf(
 )
 
 fun typeColor(typeId: Int): Color {
-    try {
-        return typeColorMap[typeId];
+    return try {
+        typeColorMap[typeId]
     } catch (ex: Exception) {
-        return Color.LightGray;
+        Color.LightGray
     }
 }
 
 class MainActivity : ComponentActivity() {
-    private lateinit var db: AppDatabase
+    private lateinit var activitiesDb: AppDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        db = Room.databaseBuilder(
+        activitiesDb = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java,
             "activities-db"
         )
         .addCallback(object : RoomDatabase.Callback() {
-            override fun onCreate(dbInstance: SupportSQLiteDatabase) {
-                super.onCreate(dbInstance)
-                DatabaseSeeder.seed(db, dbInstance)
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                super.onCreate(db)
+                DatabaseSeeder.seed(activitiesDb, db)
             }
         })
         .build()
@@ -77,8 +76,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ActivitiesTheme {
-                val activityDao = db.activityDao()
-                val activityTypeDao = db.activityTypeDao()
+                val activityDao = activitiesDb.activityDao()
+                val activityTypeDao = activitiesDb.activityTypeDao()
                 var activities by remember { mutableStateOf<List<ActivityUi>>(emptyList()) }
                 var activityTypes by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
 
@@ -123,9 +122,9 @@ fun formatDuration(durationMillis: Long): String {
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
     return buildString {
-        if (hours > 0) append("${hours} hr ")
-        if (minutes > 0) append("${minutes} min ")
-        if (seconds > 0) append("${seconds} sec")
+        if (hours > 0) append("$hours hr ")
+        if (minutes > 0) append("$minutes min ")
+        if (seconds > 0) append("$seconds sec")
     }.trim()
 }
 
@@ -133,9 +132,9 @@ fun groupForDate(epochMillis: Long): String {
     // Simple grouping: Today, Yesterday, or date string
     val now = LocalDate.now()
     val date = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate()
-    return when {
-        date == now -> "Today"
-        date == now.minusDays(1) -> "Yesterday"
+    return when (date) {
+        now -> "Today"
+        now.minusDays(1) -> "Yesterday"
         else -> date.toString()
     }
 }
@@ -168,8 +167,6 @@ fun ActivityListScreen(
     val grouped = activities
         .filter { it.title.contains(filter, true) || it.description.contains(filter, true) }
         .groupBy { groupForDate(it.whenDate) }
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = modifier) {
         OutlinedTextField(
@@ -199,7 +196,7 @@ fun ActivityListScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .pointerInput(activity) {
-                                    detectDragGestures { change, dragAmount ->
+                                    detectDragGestures { _, dragAmount ->
                                         if (dragAmount.getDistance() > 100f) {
                                             dismissed = true
                                             onDelete(activity)
